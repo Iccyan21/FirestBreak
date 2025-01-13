@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <!-- 既存の設定はそのままに -->
+        
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>firstbreak</string>
+                </array>
+                <key>CFBundleURLName</key>
+                <string>com.yourcompany.FirstBreak</string>
+            </dict>
+        </array>
+        <key>NSCameraUsageDescription</key>
+        <string>ARキットでカメラを使用するために必要です</string>
+        <key>LSApplicationQueriesSchemes</key>
+        <array>
+            <string>spotify</string>
+        </array>
+        
+        <!-- 他の既存の設定もそのままに -->
+    </dict>
+</plist>

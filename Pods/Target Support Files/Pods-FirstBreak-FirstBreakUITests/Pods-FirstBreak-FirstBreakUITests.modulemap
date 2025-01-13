@@ -1,0 +1,6 @@
+framework module Pods_FirstBreak_FirstBreakUITests {
+  umbrella header "Pods-FirstBreak-FirstBreakUITests-umbrella.h"
+
+  export *
+  module * { export * }
+}
