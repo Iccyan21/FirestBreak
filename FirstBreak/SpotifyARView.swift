@@ -388,7 +388,7 @@ class ViewController: UIViewController {
         bluetoothManager = SpotifyBluetoothManager()
         bluetoothManager.onPlaybackInfoReceived = { [weak self] playbackInfo in
             print("🎵 AR表示更新開始: \(playbackInfo.trackName)")
-            self?.updateARDisplayFromBluetooth(with: playbackInfo)
+            self?.updateARDisplayFromBluetoothAppleStyle(with: playbackInfo)
         }
         bluetoothManager.startScanning()
     }
@@ -416,103 +416,15 @@ class ViewController: UIViewController {
             }
         }
     }
-    // 自分の聴いてる曲の表示
-    private func updateARDisplay(with playerState: SPTAppRemotePlayerState) {
-        print("AR表示更新開始（自分の曲）")
-        currentTrackNode?.removeFromParentNode()
-        
-        // テキストノードの作成
-        let trackInfo = "今聴いている曲:\n\(playerState.track.name)\nアーティスト名\(playerState.track.artist.name)"
-        let textGeometry = SCNText(string: trackInfo, extrusionDepth: 1)
-        textGeometry.firstMaterial?.diffuse.contents = UIColor.white
-        
-        let textNode = SCNNode(geometry: textGeometry)
-        textNode.scale = SCNVector3(0.002, 0.002, 0.002)
-        
-        guard let camera = sceneView.pointOfView else { return }
-        let position = SCNVector3(-0.3, -0.2, -0.8)
-        textNode.position = camera.convertPosition(position, to: nil)
-        
-        sceneView.scene.rootNode.addChildNode(textNode)
-        currentTrackNode = textNode
-        
-        // アートワーク取得
-        // // 自分の音楽の場合は、SpotifyのAPIから直接画像を取得している
-        appRemote?.imageAPI?.fetchImage(forItem: playerState.track, with: CGSize(width: 300, height: 300)) { [weak self] (result, error) in
-            if let image = result as? UIImage {
-                print("画像取得成功: \(image.size)")
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
-                    let albumNode = self.createAlbumArtworkNode(with: image)
-                    
-                    // アートワークの位置も左に揃える
-                    let artworkPosition = SCNVector3(-0.1, 0.1, -0.8)
-                    albumNode.position = camera.convertPosition(artworkPosition, to: nil)
-                    
-                    self.sceneView.scene.rootNode.addChildNode(albumNode)
-                    print("アートワーク配置: \(albumNode.worldPosition)")
-                }
-            }
-        }
+    // updateARDisplay メソッドを Apple風デザイン版に置き換え
+    private func updateARDisplayAppleStyle(with playerState: SPTAppRemotePlayerState) {
+        updateARDisplayWithImprovedLayout(with: playerState)
+        sharePlaybackInfo(from: playerState)
     }
-    
-    // 相手の聴いている曲
-    private func updateARDisplayFromBluetooth(with playbackInfo: SpotifyPlaybackInfo) {
-        print("AR表示更新開始（相手の曲）")
-        print("受信したアルバムURL: \(playbackInfo.albumArtURL)") // デバッグ用
-        otherTrackNode?.removeFromParentNode()
         
-        let trackInfo = "相手の聴いてる曲名:\n\(playbackInfo.trackName)\nアーティスト名\(playbackInfo.artistName)"
-        let textGeometry = SCNText(string: trackInfo, extrusionDepth: 1)
-        textGeometry.firstMaterial?.diffuse.contents = UIColor.green
-        
-        let textNode = SCNNode(geometry: textGeometry)
-        textNode.scale = SCNVector3(0.002, 0.002, 0.002)
-        
-        guard let camera = sceneView.pointOfView else { return }
-        let position = SCNVector3(0.3, -0.2, -0.8)
-        textNode.position = camera.convertPosition(position, to: nil)
-        
-        sceneView.scene.rootNode.addChildNode(textNode)
-        otherTrackNode = textNode
-        
-        // ローカルファイルURLから画像を読み込む
-        // 画像URLから画像を非同期で取得
-        if let url = URL(string: playbackInfo.albumArtURL) {
-            print("画像の取得を試行: \(url)")
-            
-            let task = URLSession.shared.dataTask(with: url) { [weak self] (data, response, error) in
-                if let error = error {
-                    print("画像取得エラー: \(error)")
-                    return
-                }
-                
-                guard let imageData = data,
-                      let image = UIImage(data: imageData) else {
-                    print("画像データの変換に失敗")
-                    return
-                }
-                
-                print("画像取得成功: \(image.size)")
-                
-                DispatchQueue.main.async {
-                    guard let self = self,
-                          let camera = self.sceneView.pointOfView else { return }
-                    
-                    let albumNode = self.createAlbumArtworkNode(with: image)
-                    let artworkPosition = SCNVector3(0.5, 0.1, -0.8)
-                    albumNode.position = camera.convertPosition(artworkPosition, to: nil)
-                    
-                    let constraint = SCNBillboardConstraint()
-                    constraint.freeAxes = SCNBillboardAxis.all
-                    albumNode.constraints = [constraint]
-                    
-                    self.sceneView.scene.rootNode.addChildNode(albumNode)
-                    print("相手の曲のアートワーク配置完了")
-                }
-            }
-            task.resume()
-        }
+        // updateARDisplayFromBluetooth メソッドを Apple風デザイン版に置き換え
+    private func updateARDisplayFromBluetoothAppleStyle(with playbackInfo: SpotifyPlaybackInfo) {
+        updateARDisplayFromBluetoothWithImprovedLayout(with: playbackInfo)
     }
     
 //    // 相手のアルバム画面固定
@@ -676,7 +588,7 @@ class ViewController: UIViewController {
             if let state = result as? SPTAppRemotePlayerState {
                 print("State conversion succeeded")
                 DispatchQueue.main.async {
-                    self?.updateARDisplay(with: state)
+                    self?.updateARDisplayAppleStyle(with: state)
                     // Bluetooth経由で情報を共有
                     self?.sharePlaybackInfo(from: state)
                 }
@@ -691,7 +603,7 @@ class ViewController: UIViewController {
                     if let state = result as? SPTAppRemotePlayerState {
                         print("GetPlayerState succeeded")
                         DispatchQueue.main.async {
-                            self?.updateARDisplay(with: state)
+                            self?.updateARDisplayAppleStyle(with: state)
                             // Bluetooth経由で情報を共有
                             self?.sharePlaybackInfo(from: state)
                         }
@@ -841,4 +753,622 @@ extension ViewController: SPTAppRemoteDelegate {
 
 extension Notification.Name {
     static let spotifyCallback = Notification.Name("SpotifyCallback")
+}// 🎯 改善されたApple風ARレイアウト
+
+import UIKit
+import ARKit
+import SceneKit
+import SpotifyiOS
+
+extension ViewController {
+    
+    // MARK: - 改善されたApple風デザイン（レイアウト修正版）
+    private func updateARDisplayWithImprovedLayout(with playerState: SPTAppRemotePlayerState) {
+        print("🎨 改善されたAR表示更新開始（自分の曲）")
+        currentTrackNode?.removeFromParentNode()
+        
+        guard let camera = sceneView.pointOfView else { return }
+        
+        // メインコンテナノード
+        let containerNode = SCNNode()
+        
+        // 1. 美しいカード背景（統一されたサイズ）
+        let cardNode = createUnifiedCard(isOtherUser: false)
+        
+        // 2. 垂直レイアウトコンテナ
+        let contentContainer = SCNNode()
+        
+        // 3. アートワーク用プレースホルダー（上部）
+        let artworkPlaceholder = createArtworkPlaceholder()
+        artworkPlaceholder.position = SCNVector3(0, 0.08, 0.002) // カードの上部
+        
+        // 4. テキスト情報（下部）
+        let textContainer = createTextContainer(
+            title: playerState.track.name,
+            artist: playerState.track.artist.name,
+            isOtherUser: false,
+            isPlaying: true
+        )
+        textContainer.position = SCNVector3(0, -0.05, 0.002) // カードの下部
+        
+        // レイアウト組み立て
+        contentContainer.addChildNode(artworkPlaceholder)
+        contentContainer.addChildNode(textContainer)
+        
+        containerNode.addChildNode(cardNode)
+        containerNode.addChildNode(contentContainer)
+        
+        // カメラからの相対位置（左側）
+        let position = SCNVector3(-0.4, 0.1, -0.8)
+        containerNode.position = camera.convertPosition(position, to: nil)
+        
+        // 改善されたアニメーション
+        addImprovedAnimation(to: containerNode)
+        
+        sceneView.scene.rootNode.addChildNode(containerNode)
+        currentTrackNode = containerNode
+        
+        // アートワーク取得とレイアウト適用
+        fetchAndDisplayImprovedArtwork(
+            for: playerState,
+            placeholder: artworkPlaceholder,
+            camera: camera
+        )
+    }
+    
+    // MARK: - 相手用の改善されたレイアウト
+    private func updateARDisplayFromBluetoothWithImprovedLayout(with playbackInfo: SpotifyPlaybackInfo) {
+        print("🎨 改善されたAR表示更新開始（相手の曲）")
+        otherTrackNode?.removeFromParentNode()
+        
+        guard let camera = sceneView.pointOfView else { return }
+        
+        let containerNode = SCNNode()
+        
+        // 相手用カード
+        let cardNode = createUnifiedCard(isOtherUser: true)
+        
+        let contentContainer = SCNNode()
+        
+        // アートワーク用プレースホルダー
+        let artworkPlaceholder = createArtworkPlaceholder()
+        artworkPlaceholder.position = SCNVector3(0, 0.08, 0.002)
+        
+        // テキスト情報
+        let textContainer = createTextContainer(
+            title: playbackInfo.trackName,
+            artist: playbackInfo.artistName,
+            isOtherUser: true,
+            isPlaying: true
+        )
+        textContainer.position = SCNVector3(0, -0.05, 0.002)
+        
+        contentContainer.addChildNode(artworkPlaceholder)
+        contentContainer.addChildNode(textContainer)
+        
+        containerNode.addChildNode(cardNode)
+        containerNode.addChildNode(contentContainer)
+        
+        // 右側に配置
+        let position = SCNVector3(0.4, 0.1, -0.8)
+        containerNode.position = camera.convertPosition(position, to: nil)
+        
+        addImprovedAnimation(to: containerNode)
+        
+        sceneView.scene.rootNode.addChildNode(containerNode)
+        otherTrackNode = containerNode
+        
+        // ネットワーク経由でアートワーク取得
+        fetchNetworkArtworkImproved(
+            url: playbackInfo.albumArtURL,
+            placeholder: artworkPlaceholder,
+            camera: camera
+        )
+    }
+    
+    // MARK: - 統一されたカードデザイン
+    private func createUnifiedCard(isOtherUser: Bool = false) -> SCNNode {
+        // Apple Musicライクなカードサイズ（縦長の黄金比）
+        let cardWidth: CGFloat = 0.35
+        let cardHeight: CGFloat = 0.4
+        
+        let cardGeometry = SCNPlane(width: cardWidth, height: cardHeight)
+        
+        // マテリアル設定
+        let material = SCNMaterial()
+        
+        if isOtherUser {
+            // 相手用：青系のグラデーション
+            material.diffuse.contents = createGradientImage(
+                colors: [UIColor.systemBlue.withAlphaComponent(0.95), UIColor.systemTeal.withAlphaComponent(0.8)],
+                size: CGSize(width: 100, height: 100)
+            )
+        } else {
+            // 自分用：暖色系のグラデーション
+            material.diffuse.contents = createGradientImage(
+                colors: [UIColor.systemBackground.withAlphaComponent(0.95), UIColor.systemGray6.withAlphaComponent(0.8)],
+                size: CGSize(width: 100, height: 100)
+            )
+        }
+        
+        // Apple風のマテリアル設定
+        material.metalness.contents = 0.05
+        material.roughness.contents = 0.1
+        material.isDoubleSided = true
+        
+        // 影とボーダー効果
+        material.multiply.contents = UIColor.black.withAlphaComponent(0.03)
+        
+        cardGeometry.materials = [material]
+        cardGeometry.cornerRadius = 0.025 // Apple風の角丸
+        
+        return SCNNode(geometry: cardGeometry)
+    }
+    
+    // MARK: - アートワーク用プレースホルダー
+    private func createArtworkPlaceholder() -> SCNNode {
+        let placeholderSize: CGFloat = 0.15
+        let placeholderGeometry = SCNPlane(width: placeholderSize, height: placeholderSize)
+        
+        let material = SCNMaterial()
+        material.diffuse.contents = UIColor.systemGray5.withAlphaComponent(0.3)
+        material.isDoubleSided = true
+        
+        placeholderGeometry.materials = [material]
+        placeholderGeometry.cornerRadius = 0.015
+        
+        return SCNNode(geometry: placeholderGeometry)
+    }
+    
+    //
+    private func createTextContainer(title: String, artist: String, isOtherUser: Bool) -> SCNNode {
+        let textContainer = SCNNode()
+        
+        // タイトル（強制左寄り）
+        let titleNode = createForceLeftAlignedText(
+            text: title,
+            fontSize: 14,
+            weight: .semibold,
+            color: isOtherUser ? UIColor.systemBlue : UIColor.white
+        )
+        titleNode.position.y = 0.3  // Y座標のみ変更
+
+        // アーティスト名（強制左寄り）
+        let artistNode = createForceLeftAlignedText(
+            text: artist,
+            fontSize: 12,
+            weight: .regular,
+            color: isOtherUser ? UIColor.systemBlue.withAlphaComponent(0.7) : UIColor.secondaryLabel
+        )
+        artistNode.position.y = -0.050  // Y座標のみ変更
+
+        textContainer.addChildNode(titleNode)
+        textContainer.addChildNode(artistNode)
+        
+        return textContainer
+    }
+    
+    // MARK: - 強制左寄りテキスト（新メソッド）
+        private func createForceLeftAlignedText(text: String, fontSize: CGFloat, weight: UIFont.Weight,
+                                              color: UIColor) -> SCNNode {
+            print("🚀 強制左寄りテキスト作成開始: \(text)")
+            
+            let truncatedText = truncateText(text, maxLength: 25)
+            
+            let textGeometry = SCNText(string: truncatedText, extrusionDepth: 0.001)
+            textGeometry.font = UIFont.systemFont(ofSize: fontSize, weight: weight)
+            textGeometry.firstMaterial?.diffuse.contents = color
+            textGeometry.firstMaterial?.isDoubleSided = true
+            textGeometry.firstMaterial?.metalness.contents = 0.0
+            textGeometry.firstMaterial?.roughness.contents = 1.0
+            
+            let textNode = SCNNode(geometry: textGeometry)
+            textNode.scale = SCNVector3(0.0025, 0.0025, 0.0025)
+            
+                        // 🎯 絶対に左寄りにする！
+            textNode.position.x = -0.08  // 異次元レベルの左寄り！
+            
+            print("✅ 強制左寄り完了: x = \(textNode.position.x)")
+            
+            return textNode
+        }
+        
+        // MARK: - 新しいテキストコンテナ（強制左寄り版）
+    private func createForceLeftTextContainer(title: String, artist: String, isOtherUser: Bool) -> SCNNode {
+        let textContainer = SCNNode()
+        
+        // タイトル（強制左寄り）
+        let titleNode = createForceLeftAlignedText(
+            text: title,
+            fontSize: 14,
+            weight: .semibold,
+            color: isOtherUser ? UIColor.systemBlue : UIColor.white
+        )
+        titleNode.position = SCNVector3(0, 0.018, 0)
+        
+        // アーティスト名（強制左寄り）
+        let artistNode = createForceLeftAlignedText(
+            text: artist,
+            fontSize: 12,
+            weight: .regular,
+            color: isOtherUser ? UIColor.systemBlue : UIColor.white  // 🎯 自分の場合は少し透明な白色
+        )
+        artistNode.position = SCNVector3(0, -0.018, 0)
+        
+        textContainer.addChildNode(titleNode)
+        textContainer.addChildNode(artistNode)
+        
+        return textContainer
+    }
+    
+    // MARK: - 改善されたアートワーク表示
+    private func createImprovedAlbumArtwork(with image: UIImage) -> SCNNode {
+        let artworkSize: CGFloat = 0.15
+        let plane = SCNPlane(width: artworkSize, height: artworkSize)
+        
+        let material = SCNMaterial()
+        material.diffuse.contents = image
+        material.isDoubleSided = true
+        
+        // 高品質表示設定
+        material.metalness.contents = 0.0
+        material.roughness.contents = 0.2
+        
+        plane.materials = [material]
+        plane.cornerRadius = 0.015 // 角丸
+        
+        let artworkNode = SCNNode(geometry: plane)
+        
+        // 軽微な影効果
+        addSubtleShadow(to: artworkNode)
+        
+        return artworkNode
+    }
+    
+    // MARK: - 改善されたアニメーション
+    private func addImprovedAnimation(to node: SCNNode) {
+        // 1. 登場アニメーション
+        node.opacity = 0.0
+        node.scale = SCNVector3(0.3, 0.3, 0.3)
+        
+        let fadeIn = SCNAction.fadeIn(duration: 0.6)
+        let scaleUp = SCNAction.scale(to: 1.0, duration: 0.8)
+        
+        fadeIn.timingMode = SCNActionTimingMode.easeOut
+        scaleUp.timingMode = SCNActionTimingMode.easeOut
+        
+        let appearGroup = SCNAction.group([fadeIn, scaleUp])
+        node.runAction(appearGroup)
+        
+        // 2. 継続的な微細アニメーション
+        addSubtleIdleAnimation(to: node)
+    }
+    
+    // MARK: - 微細なアイドルアニメーション
+    private func addSubtleIdleAnimation(to node: SCNNode) {
+        // 非常に軽微な浮遊
+        let floatUp = SCNAction.moveBy(x: 0, y: 0.003, z: 0, duration: 3.0)
+        let floatDown = SCNAction.moveBy(x: 0, y: -0.003, z: 0, duration: 3.0)
+        
+        floatUp.timingMode = SCNActionTimingMode.easeInEaseOut
+        floatDown.timingMode = SCNActionTimingMode.easeInEaseOut
+        
+        let floatSequence = SCNAction.sequence([floatUp, floatDown])
+        let floatForever = SCNAction.repeatForever(floatSequence)
+        
+        node.runAction(floatForever, forKey: "subtleFloat")
+    }
+    
+    // MARK: - アートワーク取得（改善版）
+    private func fetchAndDisplayImprovedArtwork(for playerState: SPTAppRemotePlayerState,
+                                              placeholder: SCNNode, camera: SCNNode) {
+        appRemote?.imageAPI?.fetchImage(forItem: playerState.track,
+                                      with: CGSize(width: 400, height: 400)) { [weak self] (result, error) in
+            if let image = result as? UIImage {
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    
+                    // プレースホルダーを置き換え
+                    let artworkNode = self.createImprovedAlbumArtwork(with: image)
+                    artworkNode.position = placeholder.position
+                    
+                    // スムーズな切り替えアニメーション
+                    artworkNode.opacity = 0.0
+                    
+                    if let parent = placeholder.parent {
+                        parent.addChildNode(artworkNode)
+                        
+                        let fadeOut = SCNAction.fadeOut(duration: 0.2)
+                        let fadeIn = SCNAction.fadeIn(duration: 0.3)
+                        
+                        placeholder.runAction(fadeOut) {
+                            placeholder.removeFromParentNode()
+                        }
+                        
+                        artworkNode.runAction(fadeIn)
+                    }
+                    
+                    print("✨ 改善されたアートワーク表示完了")
+                }
+            }
+        }
+    }
+    
+    // MARK: - ネットワークアートワーク取得（改善版）
+    private func fetchNetworkArtworkImproved(url: String, placeholder: SCNNode, camera: SCNNode) {
+        guard let imageURL = URL(string: url) else { return }
+        
+        URLSession.shared.dataTask(with: imageURL) { [weak self] (data, response, error) in
+            guard let self = self,
+                  let imageData = data,
+                  let image = UIImage(data: imageData) else {
+                print("🖼️ ネットワーク画像取得失敗")
+                return
+            }
+            
+            DispatchQueue.main.async {
+                let artworkNode = self.createImprovedAlbumArtwork(with: image)
+                artworkNode.position = placeholder.position
+                
+                artworkNode.opacity = 0.0
+                
+                if let parent = placeholder.parent {
+                    parent.addChildNode(artworkNode)
+                    
+                    let fadeOut = SCNAction.fadeOut(duration: 0.2)
+                    let fadeIn = SCNAction.fadeIn(duration: 0.3)
+                    
+                    placeholder.runAction(fadeOut) {
+                        placeholder.removeFromParentNode()
+                    }
+                    
+                    artworkNode.runAction(fadeIn)
+                }
+                
+                print("✨ ネットワーク経由改善アートワーク表示完了")
+            }
+        }.resume()
+    }
+    
+    // MARK: - ヘルパー関数
+    private func truncateText(_ text: String, maxLength: Int) -> String {
+        if text.count <= maxLength {
+            return text
+        }
+        let index = text.index(text.startIndex, offsetBy: maxLength - 3)
+        return String(text[..<index]) + "..."
+    }
+    
+    private func createGradientImage(colors: [UIColor], size: CGSize) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { context in
+            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                                    colors: colors.map { $0.cgColor } as CFArray,
+                                    locations: nil)!
+            
+            context.cgContext.drawLinearGradient(gradient,
+                                               start: CGPoint(x: 0, y: 0),
+                                               end: CGPoint(x: 0, y: size.height),
+                                               options: [])
+        }
+    }
+    
+    private func addSubtleShadow(to node: SCNNode) {
+        // 軽微な影ノード
+        let shadowPlane = SCNPlane(width: 0.16, height: 0.16)
+        let shadowMaterial = SCNMaterial()
+        shadowMaterial.diffuse.contents = UIColor.black.withAlphaComponent(0.15)
+        shadowMaterial.isDoubleSided = false
+        shadowPlane.materials = [shadowMaterial]
+        
+        let shadowNode = SCNNode(geometry: shadowPlane)
+        shadowNode.position = SCNVector3(0.003, -0.003, -0.001)
+        
+        node.addChildNode(shadowNode)
+    }
+}
+
+// 🎵 再生中のデザインエフェクト
+
+extension ViewController {
+    
+    // MARK: - 再生中インジケーター付きコンテナ
+    private func createPlayingContainer(title: String, artist: String, isOtherUser: Bool, isPlaying: Bool = true) -> SCNNode {
+        let textContainer = SCNNode()
+        
+        let titleNode = createForceLeftAlignedText(
+            text: title,
+            fontSize: 14,
+            weight: .semibold,
+            color: isOtherUser ? UIColor.black : UIColor.white
+        )
+        titleNode.position.y = 0.01
+        
+        let artistNode = createForceLeftAlignedText(
+            text: artist,
+            fontSize: 12,
+            weight: .regular,
+            color: isOtherUser ? UIColor.black.withAlphaComponent(0.7) : UIColor.white.withAlphaComponent(0.8)
+        )
+        artistNode.position.y = -0.025
+        
+        textContainer.addChildNode(titleNode)
+        textContainer.addChildNode(artistNode)
+        
+        // 🎵 再生中の場合、インジケーターを追加
+        if isPlaying {
+            let playingIndicator = createPlayingIndicator(isOtherUser: isOtherUser)
+            playingIndicator.position = SCNVector3(-0.08, -0.06, 0.001) // テキストの右側
+            textContainer.addChildNode(playingIndicator)
+        }
+        
+        return textContainer
+    }
+    
+    // MARK: - 再生中インジケーター（音波アニメーション）
+    private func createPlayingIndicator(isOtherUser: Bool) -> SCNNode {
+        let container = SCNNode()
+        
+        // 3本の音波バー
+        for i in 0..<3 {
+            let barHeight: Float = 0.015 + Float(i) * 0.005 // 異なる高さ
+            let bar = createSoundBar(height: barHeight, isOtherUser: isOtherUser)
+            
+            bar.position.x = Float(i) * 0.008 // 横に並べる
+            container.addChildNode(bar)
+            
+            // 各バーに異なるアニメーション
+            addSoundWaveAnimation(to: bar, delay: Double(i) * 0.2)
+        }
+        
+        return container
+    }
+    
+    // MARK: - 音波バーの作成
+    private func createSoundBar(height: Float, isOtherUser: Bool) -> SCNNode {
+        let barGeometry = SCNBox(width: 0.004, height: CGFloat(height), length: 0.002, chamferRadius: 0.001)
+        
+        let material = SCNMaterial()
+        material.diffuse.contents = isOtherUser ? UIColor.systemBlue : UIColor.white
+        material.emission.contents = isOtherUser ? UIColor.systemBlue.withAlphaComponent(0.3) : UIColor.white.withAlphaComponent(0.3)
+        
+        barGeometry.materials = [material]
+        return SCNNode(geometry: barGeometry)
+    }
+    
+    // MARK: - 音波アニメーション
+    private func addSoundWaveAnimation(to bar: SCNNode, delay: Double) {
+        // ランダムな高さ変動（型を修正）
+        let scaleUp = SCNAction.scale(to: 1.8, duration: 0.3)
+        let scaleDown = SCNAction.scale(to: 0.6, duration: 0.4)
+        let scaleNormal = SCNAction.scale(to: 1.0, duration: 0.3)
+        
+        scaleUp.timingMode = SCNActionTimingMode.easeInEaseOut
+        scaleDown.timingMode = SCNActionTimingMode.easeInEaseOut
+        scaleNormal.timingMode = SCNActionTimingMode.easeInEaseOut
+        
+        let sequence = SCNAction.sequence([scaleUp, scaleDown, scaleNormal])
+        let repeatForever = SCNAction.repeatForever(sequence)
+        
+        // 遅延を追加して自然な音波効果
+        let delayAction = SCNAction.wait(duration: delay)
+        let finalAction = SCNAction.sequence([delayAction, repeatForever])
+        
+        bar.runAction(finalAction, forKey: "soundWave")
+    }
+    
+    // MARK: - プログレスバー（再生進行状況）
+    private func createProgressBar(progress: Float, isOtherUser: Bool) -> SCNNode {
+        let container = SCNNode()
+        
+        // 背景バー
+        let backgroundBar = SCNBox(width: 0.2, height: 0.003, length: 0.001, chamferRadius: 0.0015)
+        let backgroundMaterial = SCNMaterial()
+        backgroundMaterial.diffuse.contents = UIColor.gray.withAlphaComponent(0.3)
+        backgroundBar.materials = [backgroundMaterial]
+        
+        let backgroundNode = SCNNode(geometry: backgroundBar)
+        container.addChildNode(backgroundNode)
+        
+        // プログレスバー
+        let progressWidth = 0.2 * Double(progress) // 進行状況に応じた幅
+        let progressBar = SCNBox(width: progressWidth, height: 0.004, length: 0.002, chamferRadius: 0.002)
+        let progressMaterial = SCNMaterial()
+        progressMaterial.diffuse.contents = isOtherUser ? UIColor.systemBlue : UIColor.white
+        progressMaterial.emission.contents = isOtherUser ? UIColor.systemBlue.withAlphaComponent(0.2) : UIColor.white.withAlphaComponent(0.2)
+        progressBar.materials = [progressMaterial]
+        
+        let progressNode = SCNNode(geometry: progressBar)
+        // 左寄せで配置
+        progressNode.position.x = Float(-0.1 + progressWidth/2)
+        container.addChildNode(progressNode)
+        
+        return container
+    }
+    
+    // MARK: - パルス効果（心拍のような）
+    private func addPulseEffect(to node: SCNNode) {
+        let pulseUp = SCNAction.scale(to: 1.05, duration: 0.8)
+        let pulseDown = SCNAction.scale(to: 1.0, duration: 0.8)
+        
+        pulseUp.timingMode = SCNActionTimingMode.easeInEaseOut
+        pulseDown.timingMode = SCNActionTimingMode.easeInEaseOut
+        
+        let pulseSequence = SCNAction.sequence([pulseUp, pulseDown])
+        let repeatPulse = SCNAction.repeatForever(pulseSequence)
+        
+        node.runAction(repeatPulse, forKey: "pulse")
+    }
+    
+    // MARK: - 改善されたテキストコンテナ（再生状態対応）
+    private func createTextContainer(title: String, artist: String, isOtherUser: Bool, isPlaying: Bool = true) -> SCNNode {
+        return createPlayingContainer(title: title, artist: artist, isOtherUser: isOtherUser, isPlaying: isPlaying)
+    }
+    
+    // MARK: - アートワークに再生エフェクトを追加
+    private func addPlayingEffectToArtwork(_ artworkNode: SCNNode, isPlaying: Bool) {
+        if isPlaying {
+            // 1. 軽微な回転アニメーション
+            let rotation = SCNAction.rotateBy(x: 0, y: 0.1, z: 0, duration: 8.0)
+            let rotateForever = SCNAction.repeatForever(rotation)
+            artworkNode.runAction(rotateForever, forKey: "playing_rotation")
+            
+            // 2. 発光エフェクト
+            if let geometry = artworkNode.geometry as? SCNPlane,
+               let material = geometry.materials.first {
+                material.emission.contents = UIColor.white.withAlphaComponent(0.1)
+                
+                // 発光のパルス
+                let brighten = SCNAction.customAction(duration: 1.0) { (node, elapsedTime) in
+                    let intensity = 0.1 + 0.05 * sin(Float(elapsedTime) * 2 * Float.pi)
+                    material.emission.contents = UIColor.white.withAlphaComponent(CGFloat(intensity))
+                }
+                let repeatBrighten = SCNAction.repeatForever(brighten)
+                artworkNode.runAction(repeatBrighten, forKey: "playing_glow")
+            }
+        } else {
+            // 再生停止時はエフェクトを停止
+            artworkNode.removeAction(forKey: "playing_rotation")
+            artworkNode.removeAction(forKey: "playing_glow")
+        }
+    }
+    
+    // MARK: - 使用例：完全な再生中カード
+    private func createPlayingMusicCard(title: String, artist: String, artworkImage: UIImage?,
+                                      isOtherUser: Bool, isPlaying: Bool, progress: Float = 0.0) -> SCNNode {
+        let containerNode = SCNNode()
+        
+        // 1. カード背景
+        let cardNode = createUnifiedCard(isOtherUser: isOtherUser)
+        
+        // 2. アートワーク（再生エフェクト付き）
+        if let image = artworkImage {
+            let artworkNode = createImprovedAlbumArtwork(with: image)
+            artworkNode.position = SCNVector3(0, 0.08, 0.002)
+            addPlayingEffectToArtwork(artworkNode, isPlaying: isPlaying)
+            containerNode.addChildNode(artworkNode)
+        }
+        
+        // 3. テキスト（再生インジケーター付き）
+        let textContainer = createPlayingContainer(title: title, artist: artist,
+                                                 isOtherUser: isOtherUser, isPlaying: isPlaying)
+        textContainer.position = SCNVector3(0, -0.05, 0.002)
+        
+        // 4. プログレスバー
+        if isPlaying && progress > 0 {
+            let progressBar = createProgressBar(progress: progress, isOtherUser: isOtherUser)
+            progressBar.position = SCNVector3(0, -0.12, 0.002)
+            containerNode.addChildNode(progressBar)
+        }
+        
+        containerNode.addChildNode(cardNode)
+        containerNode.addChildNode(textContainer)
+        
+        // 5. 再生中は全体にパルス効果
+        if isPlaying {
+            addPulseEffect(to: containerNode)
+        }
+        
+        return containerNode
+    }
 }
